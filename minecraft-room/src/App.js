@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, useTexture } from '@react-three/drei';
+import React, { useRef, useEffect } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { PointerLockControls, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import './App.css';
 
@@ -73,10 +73,44 @@ function MinecraftRoom() {
   return <>{blocks}</>;
 }
 
+// Keyboard control setup for WASD movement
+function usePlayerControls() {
+  const keys = useRef({});
+
+  useEffect(() => {
+    const handleKeyDown = (event) => (keys.current[event.key] = true);
+    const handleKeyUp = (event) => (keys.current[event.key] = false);
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  return keys;
+}
+
+// Player movement component
+function PlayerMovement() {
+  const { camera } = useThree();
+  const keys = usePlayerControls();
+
+  useFrame(() => {
+    const speed = 0.1;
+    if (keys.current['w']) camera.position.z -= speed;
+    if (keys.current['s']) camera.position.z += speed;
+    if (keys.current['a']) camera.position.x -= speed;
+    if (keys.current['d']) camera.position.x += speed;
+  });
+
+  return null;
+}
+
 // Function to simulate a torch with light
 function TorchLight() {
-  const torchLightRef = useRef();
-
   return (
     <>
       {/* Torch block */}
@@ -86,47 +120,22 @@ function TorchLight() {
       </mesh>
 
       {/* Light coming from the torch */}
-      <pointLight
-        ref={torchLightRef}
-        position={[0, 1.5, 0]}
-        intensity={1.5}
-        distance={5}
-        decay={2}
-        color="orange"
-      />
+      <pointLight position={[0, 1.5, 0]} intensity={1.5} distance={5} decay={2} color="orange" />
     </>
-  );
-}
-
-// Custom controls component with camera restrictions
-function RestrictedControls() {
-  const controlsRef = useRef();
-  const { camera } = useThree();
-
-  return (
-    <OrbitControls
-      ref={controlsRef}
-      enableZoom={false} // Disable zooming
-      minPolarAngle={Math.PI / 3} // Limit vertical rotation
-      maxPolarAngle={2 * Math.PI / 3}
-      maxAzimuthAngle={Math.PI / 4} // Limit horizontal rotation
-      minAzimuthAngle={-Math.PI / 4}
-      target={[0, 2, 0]} // Camera focus target inside the box
-      camera={camera}
-    />
   );
 }
 
 function App() {
   return (
     <Canvas style={{ background: 'white' }}>
-      {/* Reduced ambient and directional lighting */}
       <ambientLight intensity={0.1} />
       <directionalLight intensity={0.2} position={[10, 10, 5]} />
 
       <MinecraftRoom />
-      <TorchLight /> {/* Add torch light in the center */}
-      <RestrictedControls /> {/* Restricted controls to trap the user inside */}
+      <TorchLight />
+
+      <PlayerMovement />
+      <PointerLockControls /> {/* Locks cursor and enables free movement */}
     </Canvas>
   );
 }
