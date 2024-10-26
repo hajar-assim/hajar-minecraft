@@ -1,16 +1,18 @@
 import React, { useRef, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { PointerLockControls, useTexture } from '@react-three/drei';
-import * as THREE from 'three';
 import './App.css';
+import * as THREE from 'three';
 
-// Function to generate the floor, ceiling, and walls made of Minecraft-style cubes
+function Crosshair() {
+  return <div className="crosshair">+</div>;
+}
+
 function MinecraftRoom() {
   const woodTexture = useTexture('/textures/minecraft_wood.png');
   const blocks = [];
-  const size = 10; // room size
+  const size = 10;
 
-  // Floor
   for (let x = -size / 2; x < size / 2; x++) {
     for (let z = -size / 2; z < size / 2; z++) {
       blocks.push(
@@ -19,12 +21,6 @@ function MinecraftRoom() {
           <meshStandardMaterial map={woodTexture} />
         </mesh>
       );
-    }
-  }
-
-  // Ceiling
-  for (let x = -size / 2; x < size / 2; x++) {
-    for (let z = -size / 2; z < size / 2; z++) {
       blocks.push(
         <mesh key={`ceiling_${x},${z}`} position={[x, size + 0.5, z]}>
           <boxGeometry args={[1, 1, 1]} />
@@ -34,7 +30,6 @@ function MinecraftRoom() {
     }
   }
 
-  // Walls (positive and negative Z direction)
   for (let x = -size / 2; x < size / 2; x++) {
     for (let y = 0.5; y < size; y++) {
       blocks.push(
@@ -52,7 +47,6 @@ function MinecraftRoom() {
     }
   }
 
-  // Walls (positive and negative X direction)
   for (let z = -size / 2; z < size / 2; z++) {
     for (let y = 0.5; y < size; y++) {
       blocks.push(
@@ -73,7 +67,6 @@ function MinecraftRoom() {
   return <>{blocks}</>;
 }
 
-// Keyboard control setup for WASD movement
 function usePlayerControls() {
   const keys = useRef({});
 
@@ -93,33 +86,46 @@ function usePlayerControls() {
   return keys;
 }
 
-// Player movement component
 function PlayerMovement() {
   const { camera } = useThree();
   const keys = usePlayerControls();
 
   useFrame(() => {
     const speed = 0.1;
-    if (keys.current['w']) camera.position.z -= speed;
-    if (keys.current['s']) camera.position.z += speed;
-    if (keys.current['a']) camera.position.x -= speed;
-    if (keys.current['d']) camera.position.x += speed;
+    
+    // get the camera's current rotation
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    
+    // create a forward vector based on the camera's rotation
+    camera.getWorldDirection(forward);
+    forward.y = 0; 
+    forward.normalize(); 
+
+    // create a right vector by rotating the forward vector
+    right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+    // movement controls
+    if (keys.current['w']) camera.position.add(forward.clone().multiplyScalar(speed)); // Move forward
+    if (keys.current['s']) camera.position.add(forward.clone().multiplyScalar(-speed)); // Move backward
+    if (keys.current['a']) camera.position.add(right.clone().multiplyScalar(-speed)); // Strafe left
+    if (keys.current['d']) camera.position.add(right.clone().multiplyScalar(speed)); // Strafe right
+
+    // upward and downward movement
+    if (keys.current[' ']) camera.position.y += speed; // spacebar
+    if (keys.current['Shift']) camera.position.y -= speed;
   });
 
   return null;
 }
 
-// Function to simulate a torch with light
 function TorchLight() {
   return (
     <>
-      {/* Torch block */}
       <mesh position={[0, 1.5, 0]}>
         <boxGeometry args={[0.5, 1, 0.5]} />
         <meshStandardMaterial color="orange" />
       </mesh>
-
-      {/* Light coming from the torch */}
       <pointLight position={[0, 1.5, 0]} intensity={1.5} distance={5} decay={2} color="orange" />
     </>
   );
@@ -127,16 +133,17 @@ function TorchLight() {
 
 function App() {
   return (
-    <Canvas style={{ background: 'white' }}>
-      <ambientLight intensity={0.1} />
-      <directionalLight intensity={0.2} position={[10, 10, 5]} />
-
-      <MinecraftRoom />
-      <TorchLight />
-
-      <PlayerMovement />
-      <PointerLockControls /> {/* Locks cursor and enables free movement */}
-    </Canvas>
+    <>
+      <Canvas style={{ background: 'white' }}>
+        <ambientLight intensity={0.1} />
+        <directionalLight intensity={0.2} position={[10, 10, 5]} />
+        <MinecraftRoom />
+        <TorchLight />
+        <PlayerMovement />
+        <PointerLockControls />
+      </Canvas>
+      <Crosshair />
+    </>
   );
 }
 
